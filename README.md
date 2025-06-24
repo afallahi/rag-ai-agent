@@ -26,9 +26,12 @@ rag-project/
 │   └── pdf_extractor.py # Step 1: PDF extraction
 │ └── chunker/
 │   └── text_chunker.py # Step 2: Text chunking
+│ └── embedder/
+│   └── embedder.py # Step 3: Embedding
 ├── tests/
 │ └── test_pdf_extractor.py
 │ └── test_text_chunker.py
+│ └── test_embedder.py
 ├── requirements.txt
 └── README.md
 ```
@@ -55,7 +58,7 @@ Run `.\.venv\Scripts\activate`
 | ---- | ----------------------------------- | --------------  | 
 | 1    | PDF Text Extraction (PyMuPDF)       | ✅ Completed    |
 | 2    | Text Chunking (LangChain)           | ✅ Completed    |
-| 3    | Embedding with SentenceTransformers | ⏳ Pending      |
+| 3    | Embedding with SentenceTransformers | ✅ Completed    |
 | 4    | Vector Store Setup (FAISS)          | ⏳ Pending      |
 | 5    | LLM Integration (Ollama, llama-cpp) | ⏳ Pending      |
 | 6    | Full RAG Pipeline                   | ⏳ Pending      |
@@ -69,6 +72,6 @@ Run `.\.venv\Scripts\activate`
 
 - [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for PDF parsing
 - LangChain for chunking logic
-- Sentence Transformers for embedding
+- [Sentence](https://www.sbert.net/) Transformers for embedding
 - FAISS for vector search
 - Local LLMs (via Ollama or llama-cpp)

@@ -27,10 +27,13 @@ rag-project/
 │   └── text_chunker.py # Step 2: Text chunking
 │ └── embedder/
 │   └── embedder.py # Step 3: Embedding
+│ └── vector_store/
+│   └── faiss_indexer.py # Step 4: FAISS vector DB
 ├── tests/
 │ └── test_pdf_extractor.py
 │ └── test_text_chunker.py
 │ └── test_embedder.py
+│ └── test_vector_store.py
 ├── requirements.txt
 └── README.md
 ```
@@ -60,7 +63,7 @@ conda create -n rag python=3.11
 | 1    | PDF Text Extraction (PyMuPDF)       | ✅ Completed    |
 | 2    | Text Chunking (LangChain)           | ✅ Completed    |
 | 3    | Embedding with SentenceTransformers | ✅ Completed    |
-| 4    | Vector Store Setup (FAISS)          | ⏳ In Progress  |
+| 4    | Vector Store Setup (FAISS)          | ✅ Completed    |
 | 5    | LLM Integration (Ollama, llama-cpp) | ⏳ Pending      |
 | 6    | Full RAG Pipeline                   | ⏳ Pending      |
 

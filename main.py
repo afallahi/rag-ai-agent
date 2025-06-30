@@ -4,12 +4,18 @@ import os
 from main.extractor import pdf_extractor
 from main.chunker import text_chunker
 from main.embedder import embedder
+from main.vector_store import faiss_indexer
+
 
 
 SAMPLE_DIR = "sample_pdfs"
 DEBUG_OUTPUT_DIR = "debug_chunks"
+FAISS_INDEX_DIR = "faiss_index"
+
 
 os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
+os.makedirs(FAISS_INDEX_DIR, exist_ok=True)
+
 
 
 def process_pdf(file_path: str):
@@ -58,6 +64,27 @@ def process_pdf(file_path: str):
             f.write(f"Embedding {i}: {emb}\n")
 
     print(f"Embeddings saved to: {debug_embed_path}")
+
+    # Step 4: Store embeddings in FAISS
+    print("Building FAISS index...")
+    index = faiss_indexer.build_faiss_index(embeddings, chunks)
+
+    # Save FAISS index
+    index_path = os.path.join(FAISS_INDEX_DIR, f"{filename}.index")
+    faiss_indexer.save_faiss_index(index, index_path)
+    print(f"FAISS index saved to: {index_path}")
+
+    # Run a sample query
+    print("Running test query: 'summary'")
+    top_chunks = faiss_indexer.query_faiss_index(index, "summary", embedder.get_model(), k=2)
+    if not top_chunks:
+        print("No matching chunks found.")
+        return
+
+    for i, chunk in enumerate(top_chunks, start=1):
+        print(f"\nTop Match {i}:\n{chunk[:300]}...")
+    print(f"\nRetrieved {len(top_chunks)} top matching chunks for query.")
+
 
 
 def main():

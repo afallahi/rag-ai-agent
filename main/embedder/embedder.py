@@ -21,3 +21,12 @@ def embed_text_chunks(chunks: List[str]) -> List[List[float]]:
     
     return _model.encode(chunks, convert_to_numpy=True).tolist()
 
+
+def get_model() -> SentenceTransformer:
+    """
+    Expose the internal model (used for query embedding).
+
+    Returns:
+        SentenceTransformer: Preloaded embedding model.
+    """
+    return _model

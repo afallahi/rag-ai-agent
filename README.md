@@ -18,7 +18,6 @@ This project builds a Retrieval-Augmented Generation (RAG) system. It is develop
 
 ```
 rag-project/
-├── .venv/
 ├── sample_pdfs/
 ├── main.py
 ├── main/
@@ -38,14 +37,16 @@ rag-project/
 
 ## Setup
 
-### 1. Create virtual environment
+### 1. Create Conda environment
 
-Run `python -m venv .venv`
+```bash
+conda create -n rag python=3.11
+```
 
-### 2. 2. Activate environment
 
+### 2. Activate environment
 
-Run `.\.venv\Scripts\activate`
+`conda activate rag`
 
 ### 3. Install requirements
 
@@ -59,7 +60,7 @@ Run `.\.venv\Scripts\activate`
 | 1    | PDF Text Extraction (PyMuPDF)       | ✅ Completed    |
 | 2    | Text Chunking (LangChain)           | ✅ Completed    |
 | 3    | Embedding with SentenceTransformers | ✅ Completed    |
-| 4    | Vector Store Setup (FAISS)          | ⏳ Pending      |
+| 4    | Vector Store Setup (FAISS)          | ⏳ In Progress  |
 | 5    | LLM Integration (Ollama, llama-cpp) | ⏳ Pending      |
 | 6    | Full RAG Pipeline                   | ⏳ Pending      |
 
@@ -72,6 +73,6 @@ Run `.\.venv\Scripts\activate`
 
 - [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for PDF parsing
 - LangChain for chunking logic
-- [Sentence](https://www.sbert.net/) Transformers for embedding
-- FAISS for vector search
+- [Sentence Transformers](https://www.sbert.net/) for embedding
+- [FAISS](https://github.com/facebookresearch/faiss) for vector search
 - Local LLMs (via Ollama or llama-cpp)

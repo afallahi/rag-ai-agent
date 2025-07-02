@@ -68,7 +68,7 @@ def load_faiss_index(index_path: str) -> FaissStore:
     store.load(base_path + ".index", base_path + ".metadata.npy")
     return store
 
-def query_faiss_index(store: FaissStore, query_text: str, model: SentenceTransformer, k: int = 5) -> list[str]:
-    query_embedding = model.encode(query_text).astype("float32")
-    results = store.search(query_embedding, k=k)
-    return [doc for doc, _ in results]
+def query_faiss_index(store: FaissStore, query_text: str, model: SentenceTransformer, k: int = 5) -> list[tuple[str, float]]:
+    query_embedding = model.encode([query_text], convert_to_numpy=True)
+    results = store.search(query_embedding, k)
+    return results  # returns list of (chunk_text, score)

@@ -1,11 +1,19 @@
 """RAG Project Main Module"""
 
 import os
+import logging
 from main.extractor import pdf_extractor
 from main.chunker import text_chunker
 from main.embedder import embedder
 from main.vector_store import faiss_indexer
 
+
+# === Logging Setup ===
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 SAMPLE_DIR = "sample_pdfs"
@@ -17,86 +25,102 @@ os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
 os.makedirs(FAISS_INDEX_DIR, exist_ok=True)
 
 
-
-def process_pdf(file_path: str):
-    filename = os.path.basename(file_path)
-    print(f"\n--- Processing: {filename} ---")
-
-    text = pdf_extractor.extract_text_from_pdf(file_path)
-    if not text.strip():
-        print(f"No text extracted from {filename}")
-        return
-
-    print(f"Extracted {len(text)} characters")
-
-    chunks = text_chunker.chunk_text(text)
-    if not chunks:
-        print(f"No chunks created for {filename}")
-        return
-
-    avg_size = sum(len(c) for c in chunks) // len(chunks)
-    print(f"Created {len(chunks)} chunks (avg size: {avg_size} chars)")
-    print("\n First chunk preview:\n")
-    print(chunks[0][:500])
-
-    # Save chunks to debug markdown
+def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[float]]):
+    """Save chunks and embeddings to debug files."""
+    # Save chunks
     debug_path = os.path.join(DEBUG_OUTPUT_DIR, f"{filename}.md")
     with open(debug_path, "w", encoding="utf-8") as f:
         for i, chunk in enumerate(chunks, start=1):
             f.write(f"\n--- Chunk {i} ---\n{chunk}\n")
+    logger.info("Chunks saved to: %s", debug_path)
 
-    print(f"Chunks saved to: {debug_path}")
-
-    # Step 3: Generate embeddings
-    embeddings = embedder.embed_text_chunks(chunks)
-    if not embeddings:
-        print("No embeddings created.")
-        return
-
-    print(f"Generated {len(embeddings)} embeddings (vector size: {len(embeddings[0])})")
-    print("First embedding preview (first 10 dims):")
-    print(embeddings[0][:10])
-
-    # Save embeddings to a debug file
+    # Save embeddings
     debug_embed_path = os.path.join(DEBUG_OUTPUT_DIR, f"{filename}.embeddings.txt")
     with open(debug_embed_path, "w", encoding="utf-8") as f:
         for i, emb in enumerate(embeddings, start=1):
             f.write(f"Embedding {i}: {emb}\n")
+    logger.info("Embeddings saved to: %s", debug_embed_path)
 
-    print(f"Embeddings saved to: {debug_embed_path}")
 
-    # Step 4: Store embeddings in FAISS
-    print("Building FAISS index...")
-    index = faiss_indexer.build_faiss_index(embeddings, chunks)
+def process_pdf(file_path: str, query_text: str):
+    """Process a single PDF and query its contents."""
 
-    # Save FAISS index
-    index_path = os.path.join(FAISS_INDEX_DIR, f"{filename}.index")
-    faiss_indexer.save_faiss_index(index, index_path)
-    print(f"FAISS index saved to: {index_path}")
+    filename = os.path.basename(file_path)
+    logger.info("Processing: %s", filename)
 
-    # Run a sample query
-    print("Running test query: 'summary'")
-    top_chunks = faiss_indexer.query_faiss_index(index, "summary", embedder.get_model(), k=2)
-    if not top_chunks:
-        print("No matching chunks found.")
+    text = pdf_extractor.extract_text_from_pdf(file_path)
+    if not text.strip():
+        logger.warning("No text extracted from %s", filename)
         return
 
-    for i, chunk in enumerate(top_chunks, start=1):
-        print(f"\nTop Match {i}:\n{chunk[:300]}...")
-    print(f"\nRetrieved {len(top_chunks)} top matching chunks for query.")
+    logger.debug("Extracted %d characters", len(text))
 
+    chunks = text_chunker.chunk_text(text)
+    if not chunks:
+        logger.warning("No chunks created for %s", filename)
+        return
+
+    logger.info("Created %d chunks", len(chunks))
+    logger.debug("First chunk preview:\n%s", chunks[0][:500])
+
+    # Step 3: Generate embeddings
+    embeddings = embedder.embed_text_chunks(chunks)
+    if not embeddings:
+        logger.warning("No embeddings created.")
+        return
+
+    logger.info("Generated %d embeddings", len(embeddings))
+    logger.debug("First embedding preview:\n%s", embeddings[0][:10])
+
+
+    # Save embeddings to a debug file
+    save_debug_outputs(filename, chunks, embeddings)
+
+    # Step 4: Store embeddings in FAISS
+    try:
+        logger.info("Building FAISS index...")
+        index = faiss_indexer.build_faiss_index(embeddings, chunks)
+
+        # Save FAISS index
+        index_path = os.path.join(FAISS_INDEX_DIR, f"{filename}.index")
+        faiss_indexer.save_faiss_index(index, index_path)
+        logger.debug("FAISS index saved to: %s", index_path)
+        
+        top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=2)
+        if not top_chunks:
+            logger.info(f"No matching chunks found for query: '{query_text}'")
+            return
+        
+        # Extract scores to check relevance
+        max_score = max(score for _, score in top_chunks)
+        threshold = 0.2  # Cosine similarity threshold
+
+        if max_score < threshold:
+            logger.info("No relevant chunks found for query: '%s'", query_text)
+            return
+        
+        for i, chunk in enumerate(top_chunks, start=1):
+            print(f"\nTop Match {i}:\n{chunk[:300]}...")
+        logger.info("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
+    except Exception as e:
+        logger.error("FAISS index operation failed: %s", e)
 
 
 def main():
     """Main"""
     pdf_files = [f for f in os.listdir(SAMPLE_DIR) if f.lower().endswith(".pdf")]
     if not pdf_files:
-        print("No PDF files found.")
+        logger.warning("No PDF files found.")
+        return
+    
+    query = input("Enter your search query: ")
+    if not query:
+        logger.warning("Empty query provided. Skipping search.")
         return
     
     for file in pdf_files:
         file_path = os.path.join(SAMPLE_DIR, file)
-        process_pdf(file_path)
+        process_pdf(file_path, query)
     
 
 if __name__ == "__main__":

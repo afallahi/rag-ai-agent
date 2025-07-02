@@ -77,5 +77,5 @@ conda create -n rag python=3.11
 - [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for PDF parsing
 - LangChain for chunking logic
 - [Sentence Transformers](https://www.sbert.net/) for embedding
-- [FAISS](https://github.com/facebookresearch/faiss) for vector search
+- [FAISS](https://github.com/facebookresearch/faiss) Facebook AI Similarity Search for vector search
 - Local LLMs (via Ollama or llama-cpp)

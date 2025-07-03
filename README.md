@@ -56,6 +56,19 @@ conda create -n rag python=3.11
 `pip install -r requirements.txt`
 
 
+### 4. Install and Run Ollama (for local LLM)
+Ollama is used to run local LLMs like Mistral.
+
+Download and install [Ollama](https://ollama.com)
+Pull and run a model (e.g., `mistral`)
+
+```bash
+
+ollama pull mistral
+ollama run mistral
+```
+
+
 ## Steps
 
 | Step | Description                         | Status          |
@@ -64,7 +77,7 @@ conda create -n rag python=3.11
 | 2    | Text Chunking (LangChain)           | ✅ Completed    |
 | 3    | Embedding with SentenceTransformers | ✅ Completed    |
 | 4    | Vector Store Setup (FAISS)          | ✅ Completed    |
-| 5    | LLM Integration (Ollama, llama-cpp) | ⏳ Pending      |
+| 5    | LLM Integration (Ollama)            | ✅ Completed    |
 | 6    | Full RAG Pipeline                   | ⏳ Pending      |
 
 
@@ -78,4 +91,4 @@ conda create -n rag python=3.11
 - LangChain for chunking logic
 - [Sentence Transformers](https://www.sbert.net/) for embedding
 - [FAISS](https://github.com/facebookresearch/faiss) Facebook AI Similarity Search for vector search
-- Local LLMs (via Ollama or llama-cpp)
+- [Ollama](https://ollama.com/) for running local LLMs like Mistral.

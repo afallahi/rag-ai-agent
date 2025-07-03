@@ -6,6 +6,8 @@ from main.extractor import pdf_extractor
 from main.chunker import text_chunker
 from main.embedder import embedder
 from main.vector_store import faiss_indexer
+from main.llm import llm_client
+
 
 
 # === Logging Setup ===
@@ -86,9 +88,10 @@ def process_pdf(file_path: str, query_text: str):
         faiss_indexer.save_faiss_index(index, index_path)
         logger.debug("FAISS index saved to: %s", index_path)
         
+        # Query vector store
         top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=2)
         if not top_chunks:
-            logger.info(f"No matching chunks found for query: '{query_text}'")
+            logger.info("No matching chunks found for query: %s", query_text)
             return
         
         # Extract scores to check relevance
@@ -102,6 +105,18 @@ def process_pdf(file_path: str, query_text: str):
         for i, chunk in enumerate(top_chunks, start=1):
             print(f"\nTop Match {i}:\n{chunk[:300]}...")
         logger.info("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
+
+        # Step 5: LLM integration
+        context = "\n\n".join(chunk for chunk, _ in top_chunks)
+        full_prompt = (
+            "You are a helpful assistant.\n\n"
+            "Answer the question below using ONLY the context provided.\n\n"
+            f"Context:\n{context}\n\nQuestion: {query_text}"
+        )
+
+        response = llm_client.generate_answer(full_prompt)
+        print("\n LLM Response:\n", response)
+
     except Exception as e:
         logger.error("FAISS index operation failed: %s", e)
 

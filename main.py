@@ -8,7 +8,7 @@ from main.chunker import text_chunker
 from main.embedder import embedder
 from main.vector_store import faiss_indexer
 from main.llm import llm_client
-from dotenv import load_dotenv
+from main.config import Config
 
 
 # === Logging Setup ===
@@ -19,8 +19,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-SAMPLE_DIR = "sample_pdfs"
-DEBUG_OUTPUT_DIR = "debug_chunks"
+SAMPLE_DIR = Config.SAMPLE_DIR
+DEBUG_OUTPUT_DIR = Config.DEBUG_OUTPUT_DIR
 FAISS_INDEX_PATH = os.path.join("faiss_index", "global.index")
 
 
@@ -47,8 +47,8 @@ def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[f
 
 def build_prompt(context: str, query: str) -> str:
     return (
-        "You are a helpful assistant.\n\n"
-        "Answer the question below using ONLY the context provided.\n\n"
+        "You are a professional HVAC systems consultant. Use ONLY the context below to answer the following customer question.\n"
+        "Answer in a concise, informative paragraph. If the context does not contain the answer, say 'The context does not provide enough information.'\n\n"
         f"Context:\n{context}\n\nQuestion: {query}"
     )
 
@@ -133,7 +133,6 @@ def query_and_respond(index, query_text: str):
 
 def main():
     """Main"""
-    load_dotenv()  # Load environment variables from .env file
     parser = argparse.ArgumentParser(description="Run RAG pipeline on sample PDFs")
     parser.add_argument("--force", action="store_true", help="Force reprocessing even if FAISS index exists")
     args = parser.parse_args()

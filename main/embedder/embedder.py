@@ -1,10 +1,10 @@
 """Embedding Generator Module"""
-import os
+from main.config import Config
 from typing import List
 from sentence_transformers import SentenceTransformer
 
 # Load the model once (cached)
-_model = SentenceTransformer("all-MiniLM-L6-v2")
+_model = SentenceTransformer(Config.EMBEDDING_MODEL)
 
 
 def embed_text_chunks(chunks: List[str]) -> List[List[float]]:
@@ -20,8 +20,7 @@ def embed_text_chunks(chunks: List[str]) -> List[List[float]]:
     if not chunks:
         return []
     
-    show_progress = os.getenv("DEBUG", "false").lower() == "true"
-    return _model.encode(chunks, convert_to_numpy=True, show_progress_bar=show_progress).tolist()
+    return _model.encode(chunks, convert_to_numpy=True, show_progress_bar=Config.DEBUG).tolist()
 
 
 def get_model() -> SentenceTransformer:

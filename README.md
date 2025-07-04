@@ -28,13 +28,13 @@ rag-project/
 │ └── vector_store/
 │   └── faiss_indexer.py # Step 4: FAISS vector DB
 │ └── llm/
-│   └── llm_client.py # Step 5: LLM Integration (Ollama)
+│   └── llm_ollama.py # Step 5: LLM Integration (Ollama)
 ├── tests/
 │ └── test_pdf_extractor.py
 │ └── test_text_chunker.py
 │ └── test_embedder.py
 │ └── test_vector_store.py
-│ └── test_llm_client.py
+│ └── test_llm_ollama.py
 ├── requirements.txt
 └── README.md
 ```
@@ -69,13 +69,21 @@ ollama pull mistral
 ollama run mistral
 ```
 
+### 5. Configure Environment
+Create a `.env` file in the project root to customize values.
+
+
 ## Running the Project
 
 `python main.py`
 
+
 ### Force Reprocessing
 By default, the system skips PDFs that already have a processed FAISS index. To force reprocessing of all PDFs:
 `python main.py --force`
+
+### Stop Ollama
+`Stop-Process -Name ollama -Force`
 
 
 ## Steps

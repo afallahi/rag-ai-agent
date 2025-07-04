@@ -7,8 +7,8 @@ from main.extractor import pdf_extractor
 from main.chunker import text_chunker
 from main.embedder import embedder
 from main.vector_store import faiss_indexer
-from main.llm import llm_client
 from main.config import Config
+from main.llm.ollama_client import OllamaClient
 
 
 # === Logging Setup ===
@@ -105,7 +105,7 @@ def build_global_index(force: bool = False):
     return index
 
 
-def query_and_respond(index, query_text: str):
+def query_and_respond(index, query_text: str, llm):
     """Query global index and generate a response using LLM."""
     top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=4)
     if not top_chunks:
@@ -127,12 +127,18 @@ def query_and_respond(index, query_text: str):
     prompt = build_prompt(context, query_text)
 
     logger.info("\nGenerating Answer using the LLM. This may take a few seconds...")
-    response = llm_client.generate_answer(prompt)
+    response = llm.generate_answer(prompt)
     print("\nLLM Response:\n", response)
 
 
 def main():
     """Main"""
+
+    llm = OllamaClient()
+    if not llm.is_running():
+        logger.error("Ollama is not running. Please start Ollama before continuing.")
+        return
+    
     parser = argparse.ArgumentParser(description="Run RAG pipeline on sample PDFs")
     parser.add_argument("--force", action="store_true", help="Force reprocessing even if FAISS index exists")
     args = parser.parse_args()
@@ -142,19 +148,25 @@ def main():
         logger.warning("No PDF files found.")
         return
     
-    while True:
-        query = input("Enter your search query: ")
-        if not query:
-            logger.warning("Empty query provided. Skipping search.")
-            return
-        
-        index = build_global_index(force=args.force)
-        if index is None:
-            logger.warning("Index could not be created or loaded.")
-            return
-        
-        query_and_respond(index, query)
+    index = build_global_index(force=args.force)
+    if index is None:
+        logger.warning("Index could not be created or loaded.")
+        return
     
+    try:
+        while True:
+            query = input("Enter your question (or Ctrl+C to exit): ")
+            if not query:
+                logger.warning("Empty query provided. Skipping search.")
+                return
+            if not query.strip():
+                logger.warning("Empty query. Please enter a question.")
+                continue
+            
+            query_and_respond(index, query, llm)
+    except KeyboardInterrupt:
+        logger.info("\nExiting on user interrupt")
+        
 
 if __name__ == "__main__":
     main()

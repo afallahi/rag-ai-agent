@@ -2,6 +2,7 @@
 
 import os
 import logging
+import argparse
 from main.extractor import pdf_extractor
 from main.chunker import text_chunker
 from main.embedder import embedder
@@ -44,10 +45,24 @@ def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[f
     logger.info("Embeddings saved to: %s", debug_embed_path)
 
 
-def process_pdf(file_path: str, query_text: str):
+def build_prompt(context: str, query: str) -> str:
+    return (
+        "You are a helpful assistant.\n\n"
+        "Answer the question below using ONLY the context provided.\n\n"
+        f"Context:\n{context}\n\nQuestion: {query}"
+    )
+
+
+def process_pdf(file_path: str, query_text: str, force: bool = False):
     """Process a single PDF and query its contents."""
 
     filename = os.path.basename(file_path)
+    index_path = os.path.join(FAISS_INDEX_DIR, f"{filename}.index")
+
+    if os.path.exists(index_path) and not force:
+        logger.info("Index already exists for %s. Skipping reprocessing.", filename)
+        return
+
     logger.info("Processing: %s", filename)
 
     text = pdf_extractor.extract_text_from_pdf(file_path)
@@ -108,11 +123,7 @@ def process_pdf(file_path: str, query_text: str):
 
         # Step 5: LLM integration
         context = "\n\n".join(chunk for chunk, _ in top_chunks)
-        full_prompt = (
-            "You are a helpful assistant.\n\n"
-            "Answer the question below using ONLY the context provided.\n\n"
-            f"Context:\n{context}\n\nQuestion: {query_text}"
-        )
+        full_prompt = build_prompt(context, query_text)
 
         response = llm_client.generate_answer(full_prompt)
         print("\n LLM Response:\n", response)
@@ -123,6 +134,10 @@ def process_pdf(file_path: str, query_text: str):
 
 def main():
     """Main"""
+    parser = argparse.ArgumentParser(description="Run RAG pipeline on sample PDFs")
+    parser.add_argument("--force", action="store_true", help="Force reprocessing even if FAISS index exists")
+    args = parser.parse_args()
+
     pdf_files = [f for f in os.listdir(SAMPLE_DIR) if f.lower().endswith(".pdf")]
     if not pdf_files:
         logger.warning("No PDF files found.")
@@ -135,7 +150,7 @@ def main():
     
     for file in pdf_files:
         file_path = os.path.join(SAMPLE_DIR, file)
-        process_pdf(file_path, query)
+        process_pdf(file_path, query, force=args.force)
     
 
 if __name__ == "__main__":

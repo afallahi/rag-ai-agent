@@ -1,4 +1,5 @@
 """Embedding Generator Module"""
+import os
 from typing import List
 from sentence_transformers import SentenceTransformer
 
@@ -19,7 +20,8 @@ def embed_text_chunks(chunks: List[str]) -> List[List[float]]:
     if not chunks:
         return []
     
-    return _model.encode(chunks, convert_to_numpy=True).tolist()
+    show_progress = os.getenv("DEBUG", "false").lower() == "true"
+    return _model.encode(chunks, convert_to_numpy=True, show_progress_bar=show_progress).tolist()
 
 
 def get_model() -> SentenceTransformer:

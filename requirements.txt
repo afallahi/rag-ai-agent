@@ -2,6 +2,8 @@ pymupdf==1.26.0
 pytest
 langchain==0.3.26
 sentence-transformers==4.1.0
+python-dotenv
+
 
 # Note: FAISS must be installed separately via conda:
 # conda install -c conda-forge faiss-cpu

@@ -8,7 +8,7 @@ from main.chunker import text_chunker
 from main.embedder import embedder
 from main.vector_store import faiss_indexer
 from main.llm import llm_client
-
+from dotenv import load_dotenv
 
 
 # === Logging Setup ===
@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 SAMPLE_DIR = "sample_pdfs"
 DEBUG_OUTPUT_DIR = "debug_chunks"
-FAISS_INDEX_DIR = "faiss_index"
+FAISS_INDEX_PATH = os.path.join("faiss_index", "global.index")
 
 
 os.makedirs(DEBUG_OUTPUT_DIR, exist_ok=True)
-os.makedirs(FAISS_INDEX_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(FAISS_INDEX_PATH), exist_ok=True)
 
 
 def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[float]]):
@@ -35,14 +35,14 @@ def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[f
     with open(debug_path, "w", encoding="utf-8") as f:
         for i, chunk in enumerate(chunks, start=1):
             f.write(f"\n--- Chunk {i} ---\n{chunk}\n")
-    logger.info("Chunks saved to: %s", debug_path)
+    logger.debug("Chunks saved to: %s", debug_path)
 
     # Save embeddings
     debug_embed_path = os.path.join(DEBUG_OUTPUT_DIR, f"{filename}.embeddings.txt")
     with open(debug_embed_path, "w", encoding="utf-8") as f:
         for i, emb in enumerate(embeddings, start=1):
             f.write(f"Embedding {i}: {emb}\n")
-    logger.info("Embeddings saved to: %s", debug_embed_path)
+    logger.debug("Embeddings saved to: %s", debug_embed_path)
 
 
 def build_prompt(context: str, query: str) -> str:
@@ -53,87 +53,87 @@ def build_prompt(context: str, query: str) -> str:
     )
 
 
-def process_pdf(file_path: str, query_text: str, force: bool = False):
-    """Process a single PDF and query its contents."""
+def build_global_index(force: bool = False):
+    """Extract, chunk, and embed all PDFs and return a global index."""
+    if os.path.exists(FAISS_INDEX_PATH) and not force:
+        logger.info("Global index already exists. Skipping reprocessing.")
+        return faiss_indexer.load_faiss_index(FAISS_INDEX_PATH)
 
-    filename = os.path.basename(file_path)
-    index_path = os.path.join(FAISS_INDEX_DIR, f"{filename}.index")
+    all_chunks = []
+    all_embeddings = []
 
-    if os.path.exists(index_path) and not force:
-        logger.info("Index already exists for %s. Skipping reprocessing.", filename)
+    pdf_files = [f for f in os.listdir(SAMPLE_DIR) if f.lower().endswith(".pdf")]
+    if not pdf_files:
+        logger.warning("No PDF files found.")
+        return None
+
+    for file in pdf_files:
+        file_path = os.path.join(SAMPLE_DIR, file)
+        logger.debug("Processing: %s", file)
+
+        text = pdf_extractor.extract_text_from_pdf(file_path)
+        if not text.strip():
+            logger.warning("No text extracted from %s", file)
+            continue
+
+        chunks = text_chunker.chunk_text(text)
+        if not chunks:
+            logger.warning("No chunks created for %s", file)
+            continue
+
+        logger.debug("Created %d chunks from %s", len(chunks), file)
+        embeddings = embedder.embed_text_chunks(chunks)
+        if not embeddings:
+            logger.warning("No embeddings created for %s", file)
+            continue
+
+        logger.debug("Generated %d embeddings from %s", len(embeddings), file)
+        save_debug_outputs(file, chunks, embeddings)
+
+        all_chunks.extend(chunks)
+        all_embeddings.extend(embeddings)
+
+    if not all_chunks or not all_embeddings:
+        logger.warning("No data to build global FAISS index.")
+        return None
+
+    logger.debug("Building global FAISS index...")
+    index = faiss_indexer.build_faiss_index(all_embeddings, all_chunks)
+    faiss_indexer.save_faiss_index(index, FAISS_INDEX_PATH)
+    logger.debug("Global FAISS index saved to: %s", FAISS_INDEX_PATH)
+
+    return index
+
+
+def query_and_respond(index, query_text: str):
+    """Query global index and generate a response using LLM."""
+    top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=4)
+    if not top_chunks:
+        logger.info("No matching chunks found for query: %s", query_text)
         return
 
-    logger.info("Processing: %s", filename)
-
-    text = pdf_extractor.extract_text_from_pdf(file_path)
-    if not text.strip():
-        logger.warning("No text extracted from %s", filename)
+    max_score = max(score for _, score in top_chunks)
+    threshold = 0.2
+    if max_score < threshold:
+        logger.info("No relevant chunks found for query: '%s'", query_text)
         return
 
-    logger.debug("Extracted %d characters", len(text))
+    for i, (chunk, score) in enumerate(top_chunks, start=1):
+        logger.debug("Top Match %d (score=%.3f): %s...", i, score, chunk[:300])
 
-    chunks = text_chunker.chunk_text(text)
-    if not chunks:
-        logger.warning("No chunks created for %s", filename)
-        return
+    logger.debug("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
 
-    logger.info("Created %d chunks", len(chunks))
-    logger.debug("First chunk preview:\n%s", chunks[0][:500])
+    context = "\n\n".join(chunk for chunk, _ in top_chunks)
+    prompt = build_prompt(context, query_text)
 
-    # Step 3: Generate embeddings
-    embeddings = embedder.embed_text_chunks(chunks)
-    if not embeddings:
-        logger.warning("No embeddings created.")
-        return
-
-    logger.info("Generated %d embeddings", len(embeddings))
-    logger.debug("First embedding preview:\n%s", embeddings[0][:10])
-
-
-    # Save embeddings to a debug file
-    save_debug_outputs(filename, chunks, embeddings)
-
-    # Step 4: Store embeddings in FAISS
-    try:
-        logger.info("Building FAISS index...")
-        index = faiss_indexer.build_faiss_index(embeddings, chunks)
-
-        # Save FAISS index
-        index_path = os.path.join(FAISS_INDEX_DIR, f"{filename}.index")
-        faiss_indexer.save_faiss_index(index, index_path)
-        logger.debug("FAISS index saved to: %s", index_path)
-        
-        # Query vector store
-        top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=2)
-        if not top_chunks:
-            logger.info("No matching chunks found for query: %s", query_text)
-            return
-        
-        # Extract scores to check relevance
-        max_score = max(score for _, score in top_chunks)
-        threshold = 0.2  # Cosine similarity threshold
-
-        if max_score < threshold:
-            logger.info("No relevant chunks found for query: '%s'", query_text)
-            return
-        
-        for i, chunk in enumerate(top_chunks, start=1):
-            print(f"\nTop Match {i}:\n{chunk[:300]}...")
-        logger.info("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
-
-        # Step 5: LLM integration
-        context = "\n\n".join(chunk for chunk, _ in top_chunks)
-        full_prompt = build_prompt(context, query_text)
-
-        response = llm_client.generate_answer(full_prompt)
-        print("\n LLM Response:\n", response)
-
-    except Exception as e:
-        logger.error("FAISS index operation failed: %s", e)
+    logger.info("\nGenerating Answer using the LLM. This may take a few seconds...")
+    response = llm_client.generate_answer(prompt)
+    print("\nLLM Response:\n", response)
 
 
 def main():
     """Main"""
+    load_dotenv()  # Load environment variables from .env file
     parser = argparse.ArgumentParser(description="Run RAG pipeline on sample PDFs")
     parser.add_argument("--force", action="store_true", help="Force reprocessing even if FAISS index exists")
     args = parser.parse_args()
@@ -143,14 +143,18 @@ def main():
         logger.warning("No PDF files found.")
         return
     
-    query = input("Enter your search query: ")
-    if not query:
-        logger.warning("Empty query provided. Skipping search.")
-        return
-    
-    for file in pdf_files:
-        file_path = os.path.join(SAMPLE_DIR, file)
-        process_pdf(file_path, query, force=args.force)
+    while True:
+        query = input("Enter your search query: ")
+        if not query:
+            logger.warning("Empty query provided. Skipping search.")
+            return
+        
+        index = build_global_index(force=args.force)
+        if index is None:
+            logger.warning("Index could not be created or loaded.")
+            return
+        
+        query_and_respond(index, query)
     
 
 if __name__ == "__main__":

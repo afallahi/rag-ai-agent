@@ -1,17 +1,15 @@
 # RAG PDF Agent
-
-This project builds a Retrieval-Augmented Generation (RAG) system. It is developed in a **test-driven way**, where each step includes both functionality and verification via unit tests.
-
+This project builds a Retrieval-Augmented Generation (RAG) system in a test-driven manner. It processes one or more PDF documents, extracts text, chunks it, embeds it, and builds a single unified vector index to enable question-answering via a local LLM (e.g., Mistral via Ollama).
 
 
 ## Project Goals
 
-- Parse and extract text from PDFs
-- Chunk and embed the text
-- Store embeddings in a vector database (FAISS)
-- Use a local LLM for question-answering (RAG pipeline)
-- Validate every stage with automated tests
-
+- Extract text from PDFs
+- Chunk text using LangChain
+- Generate embeddings using Sentence Transformers
+- Store and query a unified FAISS vector database
+- Use a local LLM (via Ollama) to answer user questions
+- Validate each stage with unit tests
 
 
 ## Project Structure
@@ -99,7 +97,7 @@ By default, the system skips PDFs that already have a processed FAISS index. To 
 ## Tools Used
 
 - [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) for PDF parsing
-- LangChain for chunking logic
+- [LangChain](https://www.langchain.com/) for chunking logic
 - [Sentence Transformers](https://www.sbert.net/) for embedding
 - [FAISS](https://github.com/facebookresearch/faiss) Facebook AI Similarity Search for vector search
 - [Ollama](https://ollama.com/) for running local LLMs like Mistral.

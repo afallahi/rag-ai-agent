@@ -69,6 +69,7 @@ def load_faiss_index(index_path: str) -> FaissStore:
     return store
 
 def query_faiss_index(store: FaissStore, query_text: str, model: SentenceTransformer, k: int = 5) -> list[tuple[str, float]]:
-    query_embedding = model.encode([query_text], convert_to_numpy=True)
+    show_progress = os.getenv("DEBUG", "false").lower() == "true"
+    query_embedding = model.encode([query_text], convert_to_numpy=True, show_progress_bar=show_progress)
     results = store.search(query_embedding, k)
     return results  # returns list of (chunk_text, score)

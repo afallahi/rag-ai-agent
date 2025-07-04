@@ -8,7 +8,9 @@ This project builds a Retrieval-Augmented Generation (RAG) system in a test-driv
 - Chunk text using LangChain
 - Generate embeddings using Sentence Transformers
 - Store and query a unified FAISS vector database
-- Use a local LLM (via Ollama) to answer user questions
+- Use a local LLM (Ollama + Mistral) to answer user questions
+- Intelligent intent detection using Langchain
+- CLI-based interactive assistant
 - Validate each stage with unit tests
 
 
@@ -29,6 +31,8 @@ rag-project/
 │   └── faiss_indexer.py # Step 4: FAISS vector DB
 │ └── llm/
 │   └── llm_ollama.py # Step 5: LLM Integration (Ollama)
+│ ├── intent_detector.py # LLM-based intent classifier
+│ └── config.py
 ├── tests/
 │ └── test_pdf_extractor.py
 │ └── test_text_chunker.py

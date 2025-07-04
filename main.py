@@ -9,13 +9,13 @@ from main.embedder import embedder
 from main.vector_store import faiss_indexer
 from main.config import Config
 from main.llm.ollama_client import OllamaClient
+from main.intent_detector import IntentDetector
+from main.logger_config import setup_logging
 
 
-# === Logging Setup ===
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+MAX_HISTORY_LENGTH = 10
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -120,7 +120,8 @@ def build_global_index(force: bool = False):
             continue
 
         logger.debug("Generated %d embeddings from %s", len(embeddings), file)
-        save_debug_outputs(file, chunks, embeddings)
+        if Config.DEBUG:
+            save_debug_outputs(file, chunks, embeddings)
 
         all_chunks.extend(chunks)
         all_embeddings.extend(embeddings)
@@ -137,10 +138,11 @@ def build_global_index(force: bool = False):
     return index
 
 
-def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]]):
+def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]], intent_detector: IntentDetector):
     """Query global index and generate a response using LLM."""
 
-    intent = detect_intent(query_text)
+    intent = intent_detector.detect(query_text)
+
 
     if intent == "greeting":
         response = "Hello! I'm your Armstrong assistant. Ask me a technical question and I’ll look it up for you."
@@ -176,6 +178,10 @@ def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]
     print(f"\nAssistant: {response}")
     history.append((query_text, response))
 
+    # Limit history length
+    if len(history) > MAX_HISTORY_LENGTH:
+        history[:] = history[-MAX_HISTORY_LENGTH:]
+
 
 def main():
     """Main"""
@@ -185,6 +191,8 @@ def main():
         logger.error("Ollama is not running. Please start Ollama before continuing.")
         return
     
+    intent_detector = IntentDetector()
+
     parser = argparse.ArgumentParser(description="Run RAG pipeline on sample PDFs")
     parser.add_argument("--force", action="store_true", help="Force reprocessing even if FAISS index exists")
     args = parser.parse_args()
@@ -219,7 +227,7 @@ def main():
                 logger.info("Chat history reset.")
                 continue
             
-            query_and_respond(index, query, llm, history)
+            query_and_respond(index, query, llm, history, intent_detector)
     except KeyboardInterrupt:
         logger.info("\nExiting on user interrupt")
         

@@ -1,6 +1,7 @@
 pymupdf==1.26.0
 pytest
 langchain==0.3.26
+langchain-ollama==0.3.3
 sentence-transformers==4.1.0
 python-dotenv
 

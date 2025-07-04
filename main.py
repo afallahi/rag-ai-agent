@@ -45,12 +45,44 @@ def save_debug_outputs(filename: str, chunks: list[str], embeddings: list[list[f
     logger.debug("Embeddings saved to: %s", debug_embed_path)
 
 
-def build_prompt(context: str, query: str) -> str:
+def build_prompt(context: str, query: str, history: list[tuple[str, str]]) -> str:
+    conversation = ""
+    for i, (prev_q, prev_a) in enumerate(history, start=1):
+        conversation += f"\nQ{i}: {prev_q}\nA{i}: {prev_a}"
+    
     return (
-        "You are a professional HVAC systems consultant. Use ONLY the context below to answer the following customer question.\n"
-        "Answer in a concise, informative paragraph. If the context does not contain the answer, say 'The context does not provide enough information.'\n\n"
-        f"Context:\n{context}\n\nQuestion: {query}"
+        "You are a professional HVAC systems consultant. "
+        "Use ONLY the context below to answer the following customer question.\n"
+        "Answer in a concise, informative paragraph. If the context does not contain the answer, "
+        "say 'The context does not provide enough information.'\n\n"
+        f"{conversation}\n\nContext:\n{context}\n\nQuestion: {query}"
     )
+
+
+def detect_intent(text: str) -> str:
+    lowered = text.lower().strip()
+
+    if not lowered:
+        return "empty"
+
+    greetings = {"hi", "hello", "hey", "good morning", "good afternoon"}
+    if any(greet in lowered for greet in greetings):
+        return "greeting"
+    
+    if "thank" in lowered:
+        return "thanks"
+
+    if any(kw in lowered for kw in {"bye", "goodbye", "see you"}):
+        return "goodbye"
+
+    if any(kw in lowered for kw in {"help", "what can you do", "who are you"}):
+        return "help"
+
+    # if it's short and doesn't look like a question
+    if len(lowered) < 6 or not lowered.endswith("?"):
+        return "vague"
+
+    return "rag"
 
 
 def build_global_index(force: bool = False):
@@ -105,30 +137,44 @@ def build_global_index(force: bool = False):
     return index
 
 
-def query_and_respond(index, query_text: str, llm):
+def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]]):
     """Query global index and generate a response using LLM."""
-    top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=4)
-    if not top_chunks:
-        logger.info("No matching chunks found for query: %s", query_text)
+
+    intent = detect_intent(query_text)
+
+    if intent == "greeting":
+        response = "Hello! I'm your Armstrong assistant. Ask me a technical question and I’ll look it up for you."
+    elif intent == "thanks":
+        response = "You're welcome! Let me know if you have more questions."
+    elif intent == "goodbye":
+        response = "Goodbye! Feel free to come back with more questions anytime."
+    elif intent == "help":
+        response = "I can help answer questions about your HVAC questions and Armstrong products. Ask me something specific!"
+    elif intent == "vague":
+        response = "Could you please rephrase your question or ask something more specific?"
+    elif intent == "empty":
+        logger.warning("Empty query. Skipping.")
         return
+    else:
+        # Use the RAG pipeline
+        top_chunks = faiss_indexer.query_faiss_index(index, query_text, embedder.get_model(), k=4)
+        if not top_chunks:
+            logger.info("No matching chunks found for query: %s", query_text)
+            response = "Sorry, I couldn't find relevant information in the documents."
+        else:
+            max_score = max(score for _, score in top_chunks)
+            threshold = 0.2
+            if max_score < threshold:
+                logger.info("No relevant chunks found for query: '%s'", query_text)
+                response = "I looked through the documents but didn't find anything helpful for that question."
+            else:
+                logger.debug("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
+                context = "\n\n".join(chunk for chunk, _ in top_chunks)
+                prompt = build_prompt(context, query_text, history)
+                response = llm.generate_answer(prompt)
 
-    max_score = max(score for _, score in top_chunks)
-    threshold = 0.2
-    if max_score < threshold:
-        logger.info("No relevant chunks found for query: '%s'", query_text)
-        return
-
-    for i, (chunk, score) in enumerate(top_chunks, start=1):
-        logger.debug("Top Match %d (score=%.3f): %s...", i, score, chunk[:300])
-
-    logger.debug("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)
-
-    context = "\n\n".join(chunk for chunk, _ in top_chunks)
-    prompt = build_prompt(context, query_text)
-
-    logger.info("\nGenerating Answer using the LLM. This may take a few seconds...")
-    response = llm.generate_answer(prompt)
-    print("\nLLM Response:\n", response)
+    print(f"\nAssistant: {response}")
+    history.append((query_text, response))
 
 
 def main():
@@ -153,17 +199,27 @@ def main():
         logger.warning("Index could not be created or loaded.")
         return
     
+    history = []
+    
     try:
+        print("Welcome to Armstrong Chat Assistant!")
+        print("Chat started. Type your question below.")
+        print("Type `/reset` to start over or `/exit` to quit.\n")
+
         while True:
-            query = input("Enter your question (or Ctrl+C to exit): ")
+            query = input("You: ").strip()
             if not query:
-                logger.warning("Empty query provided. Skipping search.")
-                return
-            if not query.strip():
                 logger.warning("Empty query. Please enter a question.")
                 continue
+            if query.lower() in ("/exit", "exit", "quit"):
+                logger.info("Exiting chat session.")
+                break
+            if query.lower() == "/reset":
+                history.clear()
+                logger.info("Chat history reset.")
+                continue
             
-            query_and_respond(index, query, llm)
+            query_and_respond(index, query, llm, history)
     except KeyboardInterrupt:
         logger.info("\nExiting on user interrupt")
         

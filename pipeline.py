@@ -167,7 +167,7 @@ def query_and_respond(index, query_text: str, llm, history: list[tuple[str, str]
             max_score = max(score for _, score in top_chunks)
             threshold = 0.2
             if max_score < threshold:
-                logger.info("No relevant chunks found for query: '%s'", query_text)
+                logger.debug("No relevant chunks found for query: '%s'", query_text)
                 response = "I looked through the documents but didn't find anything helpful for that question."
             else:
                 logger.debug("Retrieved %d top matching chunks for query: '%s'", len(top_chunks), query_text)

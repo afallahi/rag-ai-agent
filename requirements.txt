@@ -5,6 +5,8 @@ langchain-ollama==0.3.3
 sentence-transformers==4.1.0
 python-dotenv
 
+streamlit
+
 
 # Note: FAISS must be installed separately via conda:
 # conda install -c conda-forge faiss-cpu

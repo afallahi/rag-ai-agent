@@ -1,0 +1,23 @@
+graph TD
+    subgraph User Interaction
+        A[Employee: Tech, Sales, Support] -->|Asks Question| B[Chat Interface - CLI/UI]
+    end
+
+    subgraph Backend Pipeline
+        B --> C[Intent Detector]
+        C --> D[Retriever - FAISS Vector Search]
+        D --> E[Top-K Relevant Chunks]
+        E --> F[LLM Prompt Builder]
+        F --> G[LLM - via Ollama]
+        G --> H[Response to User]
+    end
+
+    subgraph Ingestion Phase
+        I[PDF Documents] --> J[PDF Parser - PyMuPDF]
+        J --> K[Text Chunker - LangChain]
+        K --> L[Embedding Generator - SentenceTransformers]
+        L --> M[FAISS Index Builder]
+        M --> D
+    end
+
+    H --> B

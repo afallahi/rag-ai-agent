@@ -1,5 +1,6 @@
 # RAG PDF Agent
-This project builds a Retrieval-Augmented Generation (RAG) system in a test-driven manner. It processes one or more PDF documents, extracts text, chunks it, embeds it, and builds a single unified vector index to enable question-answering via a local LLM (e.g., Mistral via Ollama).
+This project builds a **Retrieval-Augmented Generation (RAG)** system that enables users to ask technical questions based on the content of PDF documents. It extracts text from one or more PDFs, chunks and embeds it, builds a FAISS vector index, and uses a local LLM (e.g., Mistral via Ollama) to generate contextual responses.
+
 
 
 ## Project Goals
@@ -9,17 +10,23 @@ This project builds a Retrieval-Augmented Generation (RAG) system in a test-driv
 - Generate embeddings using Sentence Transformers
 - Store and query a unified FAISS vector database
 - Use a local LLM (Ollama + Mistral) to answer user questions
-- Intelligent intent detection using Langchain
+- LLM-powered intent detection via LangChain
 - CLI-based interactive assistant
+- Streamlit-based web chat UI
 - Validate each stage with unit tests
 
+
+## Architecture Diagram
+
+[Architecture Diagram](./ARCHITECTURE.mmd)
 
 ## Project Structure
 
 ```
 rag-project/
 ├── sample_pdfs/
-├── main.py
+├── pipeline.py
+├── chat_app.py
 ├── main/
 │ └── extractor.py
 │   └── pdf_extractor.py # Step 1: PDF extraction
@@ -79,16 +86,17 @@ Create a `.env` file in the project root to customize values.
 
 ## Running the Project
 
-`python main.py`
-
+`python pipeline.py`
 
 ### Force Reprocessing
 By default, the system skips PDFs that already have a processed FAISS index. To force reprocessing of all PDFs:
-`python main.py --force`
+`python pipeline.py --force`
 
 ### Stop Ollama
 `Stop-Process -Name ollama -Force`
 
+## Running the Chat UI (Streamlit)
+`streamlit run chat_app.py`
 
 ## Steps
 
@@ -100,6 +108,7 @@ By default, the system skips PDFs that already have a processed FAISS index. To 
 | 4    | Vector Store Setup (FAISS)          | ✅ Completed    |
 | 5    | LLM Integration (Ollama)            | ✅ Completed    |
 | 6    | Full RAG Pipeline                   | ✅ Completed    |
+| 7    | Streamlit Chat UI                   | ✅ Completed    |
 
 
 ## Running Tests
@@ -113,3 +122,4 @@ By default, the system skips PDFs that already have a processed FAISS index. To 
 - [Sentence Transformers](https://www.sbert.net/) for embedding
 - [FAISS](https://github.com/facebookresearch/faiss) Facebook AI Similarity Search for vector search
 - [Ollama](https://ollama.com/) for running local LLMs like Mistral.
+- [Streamlist](https://streamlit.io/)

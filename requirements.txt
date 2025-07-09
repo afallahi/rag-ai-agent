@@ -8,5 +8,6 @@ python-dotenv
 streamlit
 
 
-# Note: FAISS must be installed separately via conda:
-# conda install -c conda-forge faiss-cpu
+# Note: FAISS must be installed separately:
+# Ubuntu: pip install faiss-cpu
+# Windows: conda install -c conda-forge faiss-cpu
